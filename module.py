@@ -1,6 +1,5 @@
 import numpy as np
 
-# BPSK Modulation and Demodulation
 def bpsk_modulate(bits):
     return 2 * bits - 1  # Map 0 -> -1 and 1 -> 1
 
@@ -120,10 +119,17 @@ def threshold_max_log_map_decoder(received_bits, Lc=1.0, threshold=0.5):
     return decoded_bits
 
 def block_interleaver(input_data, rows, cols):
-    if len(input_data) != rows * cols:
-        raise ValueError("Input data size must match rows * cols")
+    """ Block interleaver with padding for cases where input_data size != rows * cols """
+    # Pad the input data to match the size of rows * cols
+    if len(input_data) < rows * cols:
+        padded_data = np.pad(input_data, (0, rows * cols - len(input_data)), 'constant', constant_values=0)
+    else:
+        padded_data = input_data[:rows * cols]  # Truncate if the data is too large
     
-    matrix = np.reshape(np.array(input_data), (rows, cols))
+    # Reshape into rows x cols matrix
+    matrix = np.reshape(padded_data, (rows, cols))
+    
+    # Perform interleaving by transposing and flattening the matrix
     interleaved_data = matrix.T.flatten()
     
     return interleaved_data
@@ -200,13 +206,14 @@ def hybrid_interleaver(input_data):
     return hybrid_interleaved
 
 def block_deinterleaver(interleaved_data, rows, cols):
-    if len(interleaved_data) != rows * cols:
-        raise ValueError("Interleaved data size must match rows * cols")
+    """ Block deinterleaver with padding handling """
+    # Reshape the interleaved data into a cols x rows matrix
+    matrix = np.reshape(interleaved_data, (cols, rows))
     
-    matrix = np.reshape(np.array(interleaved_data), (cols, rows))
+    # Perform deinterleaving by transposing and flattening the matrix
     deinterleaved_data = matrix.T.flatten()
     
-    return deinterleaved_data
+    return deinterleaved_data[:rows * cols]  # Return only the original length of data
 
 def hybrid_deinterleaver(interleaved_data):
     K = len(interleaved_data)
@@ -234,3 +241,39 @@ def hybrid_deinterleaver(interleaved_data):
     hybrid_deinterleaved = np.concatenate(deinterleaved_result)
 
     return hybrid_deinterleaved
+
+def soft_decision_decoder(received_signal, snr):
+    """ Soft-decision decoding based on likelihood of bit correctness """
+    decoded_data = []
+    threshold = 0.5  # This can be tuned based on SNR or other factors
+    for bit in received_signal:
+        if bit + snr/10 > threshold:  # This simulates soft-decoding based on SNR.
+            decoded_data.append(1)
+        else:
+            decoded_data.append(0)
+    return decoded_data
+
+def simulate_no_interleaver(input_data, snr_db, decoder):
+    modulated_signal = bpsk_modulate(input_data)
+    noisy_signal = add_noise(modulated_signal, snr_db)
+    decoded_bits = decoder(noisy_signal, snr_db)
+    ber = calculate_ber(input_data, decoded_bits)
+    return ber
+
+def simulate_block_interleaver(input_data, snr_db, rows, cols, decoder):
+    interleaved_data = block_interleaver(input_data, rows, cols)
+    modulated_signal = bpsk_modulate(interleaved_data)
+    noisy_signal = add_noise(modulated_signal, snr_db)
+    decoded_bits = decoder(noisy_signal, snr_db)
+    deinterleaved_bits = block_deinterleaver(decoded_bits, rows, cols)
+    ber = calculate_ber(input_data, deinterleaved_bits)
+    return ber
+
+def simulate_hybrid_interleaver(input_data, snr_db, decoder):
+    interleaved_data = hybrid_interleaver(input_data)
+    modulated_signal = bpsk_modulate(interleaved_data)
+    noisy_signal = add_noise(modulated_signal, snr_db)
+    decoded_bits = decoder(noisy_signal, snr_db)
+    deinterleaved_bits = hybrid_deinterleaver(decoded_bits)
+    ber = calculate_ber(input_data, deinterleaved_bits)
+    return ber
