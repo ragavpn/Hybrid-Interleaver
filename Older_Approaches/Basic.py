@@ -4,20 +4,15 @@
 
 import numpy as np
 
-# Block Interleaver
 def block_interleaver(input_data, rows, cols):
     if len(input_data) != rows * cols:
         raise ValueError("Input data size must match rows * cols")
-    
-    # Reshape the input into a matrix and transpose it
+
     matrix = np.reshape(np.array(input_data), (rows, cols))
-    
-    # Transpose the matrix and flatten it
     interleaved_data = matrix.T.flatten()
     
     return interleaved_data
 
-# 3GPP Interleaver
 def three_gpp_interleaver(input_data):
     K = len(input_data)
     
@@ -38,8 +33,7 @@ def three_gpp_interleaver(input_data):
         C = 1
         while C * R < K:
             C += 1
-    
-    # Input data is written into the matrix row by row
+
     matrix = np.zeros((R, C), dtype=int)
     
     for idx, bit in enumerate(input_data):
@@ -47,38 +41,28 @@ def three_gpp_interleaver(input_data):
         col = idx % C
         matrix[row, col] = bit
     
-    # Perform intra-row permutations
     for i in range(R):
-        if C % 2 == 0:  # If C is even, shift even rows
+        if C % 2 == 0:
             matrix[i] = np.roll(matrix[i], shift=i)
-        else:  # If C is odd, shift odd rows
+        else:
             matrix[i] = np.roll(matrix[i], shift=-i)
-    
-    # Inter-row permutations based on a random permutation pattern
+
     row_permutation_pattern = np.random.permutation(R)
     matrix = matrix[row_permutation_pattern, :]
-    
-    # Flatten the matrix to get the interleaved sequence
     interleaved_data = matrix.flatten()[:K]
     
     return interleaved_data
 
-# Hybrid Interleaver
+
 def hybrid_interleaver(input_data):
-    # Determine the number of sub-interleavers based on the input length
     K = len(input_data)
     interleaved_result = []
     if K == 16:
         for i in range(8):
-            # Extract the sub-data for this interleaver
             sub_data = input_data[i * 2: (i + 1) * 2]
-
-            # For half of the subgroups, use Block Interleaver
             if i % 2 == 0:
                 interleaved_block = block_interleaver(sub_data, 2, 1)
                 interleaved_result.append(interleaved_block)
-
-            # For the other half of the subgroups, use 3GPP Interleaver
             else:
                 interleaved_gpp = three_gpp_interleaver(sub_data)
                 interleaved_result.append(interleaved_gpp)
@@ -87,24 +71,15 @@ def hybrid_interleaver(input_data):
         block_data = input_data[:K // 2]
         gpp_data = input_data[K // 2:]
 
-        # Use Block Interleaver for the first half of the data
         interleaved_block = block_interleaver(block_data, K // 4, 2)
         interleaved_result.append(interleaved_block)
 
-        # Use 3GPP Interleaver for the second half of the data
         interleaved_gpp = three_gpp_interleaver(gpp_data)
         interleaved_result.append(interleaved_gpp)
-
-
-
-    # Combine all interleaved subgroups
     hybrid_interleaved = np.concatenate(interleaved_result)
 
     return hybrid_interleaved
 
-
-
-# Example data for sizes 16, 64, 256, and 1024
 input_data_16 = list(range(16))
 input_data_64 = list(range(64))
 input_data_256 = list(range(256))
