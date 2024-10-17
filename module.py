@@ -102,9 +102,55 @@ def block_deinterleaver(interleaved_data, rows, cols):
     deinterleaved_data = matrix.T.flatten()
     return deinterleaved_data[:rows * cols]
 
-def hybrid_deinterleaver(interleaved_data):
-    K = len(interleaved_data)
+def three_gpp_deinterleaver(interleaved_data, original_length):
+    K = original_length
+    
+    # Determine the number of rows (R) based on K, same as in the interleaver
+    if 1 <= K <= 24:
+        R = 1
+    elif 25 <= K <= 159:
+        R = 5
+    elif (160 <= K <= 200) or (481 <= K <= 530):
+        R = 10
+    else:
+        R = 20
+    
+    # Calculate the number of columns (C)
+    C = 1
+    while C * R < K:
+        C += 1
+    
+    # Recreate the interleaved matrix with zeros
+    matrix = np.zeros((R, C), dtype=int)
+    
+    # Copy the interleaved data back into the matrix
+    for idx, bit in enumerate(interleaved_data[:K]):
+        row = idx // C
+        col = idx % C
+        matrix[row, col] = bit
+
+    # Reverse row permutation
+    row_permutation_pattern = np.random.permutation(R)  # Get the same permutation pattern
+    row_inverse_permutation = np.argsort(row_permutation_pattern)  # Reverse the permutation
+    matrix = matrix[row_inverse_permutation, :]
+    
+    # Reverse the cyclic row shifts
+    for i in range(R):
+        if C % 2 == 0:
+            matrix[i] = np.roll(matrix[i], shift=-i)  # Reverse the positive shift
+        else:
+            matrix[i] = np.roll(matrix[i], shift=i)  # Reverse the negative shift
+    
+    # Return the deinterleaved flattened matrix
+    deinterleaved_data = matrix.flatten()[:K]  # Only return original K bits (remove padding if any)
+    
+    return deinterleaved_data
+
+
+def hybrid_deinterleaver(interleaved_data, original_length):
+    K = original_length
     deinterleaved_result = []
+    
     if K == 16:
         for i in range(8):
             sub_data = interleaved_data[i * 2: (i + 1) * 2]
@@ -112,21 +158,23 @@ def hybrid_deinterleaver(interleaved_data):
                 deinterleaved_block = block_deinterleaver(sub_data, 2, 1)
                 deinterleaved_result.append(deinterleaved_block)
             else:
-                deinterleaved_gpp = three_gpp_interleaver(sub_data)
+                deinterleaved_gpp = three_gpp_deinterleaver(sub_data, len(sub_data))
                 deinterleaved_result.append(deinterleaved_gpp)
     else:
         block_data = interleaved_data[:K // 2]
         gpp_data = interleaved_data[K // 2:]
-
+        
         deinterleaved_block = block_deinterleaver(block_data, K // 4, 2)
         deinterleaved_result.append(deinterleaved_block)
 
-        deinterleaved_gpp = three_gpp_interleaver(gpp_data)
+        deinterleaved_gpp = three_gpp_deinterleaver(gpp_data, len(gpp_data))
         deinterleaved_result.append(deinterleaved_gpp)
 
     hybrid_deinterleaved = np.concatenate(deinterleaved_result)
-
+    
     return hybrid_deinterleaved
+
+
 
 # Decoder that is used in the current implementation
 
@@ -257,6 +305,6 @@ def simulate_hybrid_interleaver(input_data, snr_db, decoder):
     modulated_signal = bpsk_modulate(interleaved_data)
     noisy_signal = add_noise(modulated_signal, snr_db)
     decoded_bits = decoder(noisy_signal, snr_db)
-    deinterleaved_bits = hybrid_deinterleaver(decoded_bits)
+    deinterleaved_bits = hybrid_deinterleaver(decoded_bits, len(input_data))  
     ber = calculate_ber(input_data, deinterleaved_bits)
     return ber

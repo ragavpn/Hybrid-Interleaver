@@ -39,7 +39,7 @@ class BEROptimizationEnv(gym.Env):
         reward = (self.previous_ber - average_ber) * 100
 
         if (rows, cols) in self.visited_configs:
-            reward += 10
+            reward += 0.5
 
         self.previous_ber = average_ber
         self.visited_configs.add((rows, cols))
