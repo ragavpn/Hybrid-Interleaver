@@ -6,6 +6,8 @@ The primary goal of this project is to minimize the **Bit Error Rate (BER)** in 
 
 By the end of the project, we aimed to not only evaluate BER for different configurations but also apply an RL agent to dynamically adjust interleaving configurations (rows, columns) for achieving the lowest possible BER.
 
+The base paper can be downloaded from [here](https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=9532864).
+
 ---
 
 ## Project Overview
