@@ -64,7 +64,7 @@ def run_simulation(input_length, snr_values, iterations, rows, cols,
 
 # Run the simulation for different input lengths
 snr_values = [0,0.2,0.4,0.6,0.8,1.0,1.2,1.4,1.6,1.8,2.0]
-iterations = 5
+iterations = 15
 
 run_simulation(16, snr_values, iterations, rows=2, cols=8)
 run_simulation(64, snr_values, iterations, rows=4, cols=16)

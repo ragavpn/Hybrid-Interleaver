@@ -27,27 +27,33 @@ class BEROptimizationEnv(gym.Env):
         self.current_state = np.array([0.5])  # Start with an initial BER
         self.previous_ber = 1.0  # Initialize with a high BER
 
+        # Track the best configuration (lowest BER)
+        self.best_ber = float('inf')
+        self.best_rows = None
+        self.best_cols = None
+
     def step(self, action_idx):
         rows = self.rows_choices[action_idx]
         cols = self.cols_choices[action_idx]
-        
-        # Generate random input data for simulation
         input_data = np.random.randint(0, 2, self.input_length)
 
         # Run simulation
         ber_values = []
         for snr in self.snr_values:
-            ber = simulate_block_interleaver(input_data, snr, rows, cols, soft_decision_decoder)
+            ber = simulate_hybrid_interleaver(input_data, snr, soft_decision_decoder)
             ber_values.append(ber)
 
         average_ber = np.mean(ber_values)
-        reward = self.previous_ber - average_ber  # Reward based on BER reduction
+        reward = self.previous_ber - average_ber
         self.previous_ber = average_ber
 
-        # Update the state
         self.current_state = np.array([average_ber])
 
-        # End the episode if BER is sufficiently low
+        if average_ber < self.best_ber:
+            self.best_ber = average_ber
+            self.best_rows = rows
+            self.best_cols = cols
+
         done = average_ber < 0.01
 
         return self.current_state, reward, done, {}
@@ -55,7 +61,14 @@ class BEROptimizationEnv(gym.Env):
     def reset(self):
         self.current_state = np.array([1.0])
         self.previous_ber = 1.0
+        self.best_ber = float('inf')
+        self.best_rows = None
+        self.best_cols = None
         return self.current_state
+
+    def get_best_configuration(self):
+        """Return the best rows and cols based on BER."""
+        return self.best_rows, self.best_cols, self.best_ber
 
     def close(self):
         pass
