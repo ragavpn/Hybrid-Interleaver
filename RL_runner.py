@@ -10,7 +10,7 @@ def lr_schedule(progress_remaining):
     return max(1e-4 * progress_remaining, min_lr)
 
 # Hyperparameters for training - can be modified
-episodes = 100
+episodes = 10
 timesteps = 5000
 stepcount_thresh = 1000
 
